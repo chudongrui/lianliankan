@@ -1,0 +1,570 @@
+package jing;
+
+import java.awt.BorderLayout;
+import java.awt.Checkbox;
+import java.awt.CheckboxGroup;
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.FlowLayout;
+import java.awt.Graphics;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import javax.swing.Box;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
+import javax.swing.Timer;
+class MyPanel extends JPanel {
+	int cnt = 0;
+	public void paint(Graphics g) {
+		super.paint(g);
+		g.setColor(Color.red);
+		g.fillRect(this.getWidth() - cnt, 0, cnt, this.getHeight());
+	}
+	public boolean isEnd() {
+		if (cnt++ > this.getWidth())
+			return true;
+		repaint();
+		return false;
+	}
+}
+public class LianLianKan implements ActionListener {
+	JFrame mainFrame; // 主面板
+	JDialog login;
+	MyPanel time;
+	Container thisContainer;
+	JPanel centerPanel, southPanel, northPanel; // 子面板
+	JButton diamondsButton[][] = new JButton[6][5];// 游戏按钮数组
+	JButton exitButton, newlyButton; // 退出，重列，重新开始按钮
+	JLabel fractionLable = new JLabel("0"); // 分数标签
+	JButton firstButton, secondButton; // 分别记录两次被选中的按钮
+	Timer timer;
+	int grid[][] = new int[8][7];// 储存游戏按钮位置
+	static boolean pressInformation = false; // 判断是否有按钮被选中
+	int x0 = 0, y0 = 0, x = 0, y = 0, fristMsg = 0, secondMsg = 0, validateLV; // 游戏按钮的位置坐标
+	int i, j, k, n;// 消除方法控制
+	// =====================================//
+	// =============调用图片================//
+	private static Icon[] icons = new ImageIcon[6 * 5];
+	private static final String imgDir = "c:/img";// 这里填上图片目录全名
+	static {
+		try// 发生异常的操作
+		{
+			File dir = new File(imgDir);
+			File[] imgFiles = dir.listFiles(new FilenameFilter() {
+				public boolean accept(File dir, String name) {
+					return name.toLowerCase().endsWith(".jpg");
+				}
+			});
+			for (int i = 0; i < 10 * 10; i++) {
+				icons[i] = new ImageIcon(imgFiles[i].getAbsolutePath());
+			}
+		} catch (Exception e) {
+			e.printStackTrace();// 异常处理
+		}
+	}
+	public void init() {
+		mainFrame = new JFrame("JKJ连连看");// 设置主面板的名称为"JKJ连连看"
+		mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);// 结束窗体所在的应用程序
+		thisContainer = mainFrame.getContentPane();// 调用getContentPane()方法得到内容面板
+		thisContainer.setLayout(new BorderLayout());// 设置为BorderLayout()布局
+		centerPanel = new JPanel();// 设置面板
+		southPanel = new JPanel();
+		northPanel = new JPanel();
+		northPanel.setLayout(new BorderLayout());
+		thisContainer.add(centerPanel, "Center");// 添加组件
+		thisContainer.add(southPanel, "South");
+		thisContainer.add(northPanel, "North");
+		centerPanel.setLayout(new GridLayout(6, 5));// 设置一个6*5的网格布局
+		for (int cols = 0; cols < 6; cols++) {
+			for (int rows = 0; rows < 5; rows++) {
+				// diamondsButton[cols][rows] = new
+				// JButton(String.valueOf(grid[cols + 1][rows + 1]));
+				// ===========设置图片=============//
+				diamondsButton[cols][rows] = new JButton(
+						icons[grid[cols + 1][rows + 1] - 1]);
+				diamondsButton[cols][rows].addActionListener(this);
+				centerPanel.add(diamondsButton[cols][rows]);
+			}
+		}
+		exitButton = new JButton("退出");// 退出按钮
+		exitButton.addActionListener(this);
+		// resetButton = new JButton("重列");
+		// resetButton.addActionListener(this);
+		newlyButton = new JButton("再来一局");// 再来一局按钮
+		newlyButton.addActionListener(this);
+		southPanel.add(exitButton);// 添加退出按钮
+		// southPanel.add(resetButton);
+		southPanel.add(newlyButton);// 添加再来一局按钮
+		fractionLable.setText(String.valueOf(Integer.parseInt(fractionLable
+				.getText())));
+		time = new MyPanel();
+		northPanel.add(time, BorderLayout.CENTER);
+		northPanel.add(fractionLable, BorderLayout.WEST);
+		mainFrame.setSize(500, 450);// 设置主面板的大小
+		mainFrame.setLocationRelativeTo(null);
+		mainFrame.setVisible(true);//设置窗口可见
+	}
+	public void loginDialog() {//设置登录界面
+		timer = new Timer(50, this);//创建时间对象
+		login = new JDialog();//创建对象
+		login.setTitle("登录");//在文本框中写入名字
+		login.setLayout(new FlowLayout());//添加流布局
+		login.add(new JLabel("用户名:"));//添加标签
+		final JTextField name = new JTextField(10);//设置文本框长度
+		login.add(name);
+		login.add(new JLabel("密    码:"));//添加标签
+		final JPasswordField password = new JPasswordField(10); //设置文本框长度
+		password.setEchoChar('*');//密码以*返回
+		login.add(password);
+		JButton confirm = new JButton("登录");//添加按钮
+		confirm.addActionListener(new ActionListener() {//设置一个监视器
+			public void actionPerformed(ActionEvent e) {
+				if (compareUserData(name.getText().trim(),
+						new String(password.getPassword()))) {
+					login.setVisible(false);
+					init();
+					timer.start();
+				} else {
+					JOptionPane.showMessageDialog(login, "用户名或密码错误！", "错误提示",
+							JOptionPane.ERROR_MESSAGE);
+				}
+			}
+		});
+		login.add(confirm);
+		final JDialog regDialog = new JDialog(login, "注册", true);
+		registerDialog(regDialog);
+		JButton register = new JButton("注册");//添加按钮
+		register.addActionListener(new ActionListener() {//设置一个监视器
+			public void actionPerformed(ActionEvent e) {
+				regDialog.setVisible(true);
+			}
+		});
+		login.add(register);//添加组件
+		login.setSize(400, 200);//设置登录界面的尺寸
+		login.setResizable(false);
+		login.setLocationRelativeTo(null);
+		login.setVisible(true);//窗口可见
+	}
+	private boolean compareUserData(String name, String password) {  //异常处理
+		try {
+			RandomAccessFile out = new RandomAccessFile("user.dat", "rw");
+			String fname, fpassword = null;
+			while (out.getFilePointer() < out.length()) {
+				fname = out.readUTF();
+				out.readUTF();
+				fpassword = out.readUTF();
+				if (fname.equals(name) && fpassword.equals(password))
+					return true;
+			}
+			out.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return false;
+	}
+	private void registerDialog(final JDialog regDialog) {  //方法定义
+		Box box1 = Box.createVerticalBox();//创建一个窗口
+		box1.add(new JLabel("用户名:", JLabel.RIGHT));
+		box1.add(Box.createVerticalStrut(10));
+		box1.add(new JLabel("性别:", JLabel.RIGHT));
+		box1.add(Box.createVerticalStrut(10));
+		box1.add(new JLabel("密码:", JLabel.RIGHT), -1);
+		box1.add(Box.createVerticalStrut(10));
+		box1.add(new JLabel("确认密码:", JLabel.RIGHT));//添加组件
+		Box box2 = Box.createVerticalBox();//创建另一个窗口
+		final JTextField nameTextField = new JTextField(10);//设置文本框长度
+		box2.add(nameTextField);
+		box2.add(Box.createVerticalStrut(8));//添加组件
+		final CheckboxGroup cbg = new CheckboxGroup();
+		Box box21 = Box.createHorizontalBox();
+		final Checkbox cb1 = new Checkbox("男", cbg, true);
+		box21.add(cb1);
+		box21.add(new Checkbox("女", cbg, false));
+		box2.add(box21);
+		box2.add(Box.createVerticalStrut(8)); //添加组件
+		final JPasswordField pass1 = new JPasswordField(10); //设置文本框长度
+		box2.add(pass1);
+		box2.add(Box.createVerticalStrut(8)); //添加组件
+		final JPasswordField pass2 = new JPasswordField(10); //设置文本框长度
+		box2.add(pass2); //添加组件
+		Box baseBox = Box.createHorizontalBox();
+		baseBox.add(box1);
+		baseBox.add(box2); //添加组件
+		regDialog.setLayout(new FlowLayout());//创建流布局
+		regDialog.add(baseBox);
+		JButton confirm = new JButton("确定");
+		JButton cancel = new JButton("取消");
+		regDialog.add(confirm);
+		regDialog.add(cancel); //添加组件
+		regDialog.setSize(400, 200);//设置界面的大小
+		regDialog.setResizable(false);
+		regDialog.setLocationRelativeTo(null);
+		confirm.addActionListener(new ActionListener() {//设置监视器
+			public void actionPerformed(ActionEvent arg0) {
+				String sex = null;
+				if (cbg.getSelectedCheckbox() == cb1)
+					sex = "男";
+				else
+					sex = "女";
+				if (saveUserData(nameTextField.getText().trim(), sex,
+						new String(pass1.getPassword()),
+						new String(pass2.getPassword())))
+					regDialog.setVisible(false);
+				else
+					JOptionPane.showMessageDialog(regDialog, "输入有误，请检查",
+							"错误提示", JOptionPane.ERROR_MESSAGE);
+			}
+		});
+		cancel.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				regDialog.setVisible(false);
+			}
+		});
+	}
+	private boolean saveUserData(String name, String sex, String password1,
+			String password2) {
+		if (!password1.equals(password2))
+			return false;
+		try {       //捕捉异常
+			RandomAccessFile out = new RandomAccessFile("user.dat", "rw");
+			out.seek(out.length());
+			out.writeUTF(name);
+			out.writeUTF(sex);
+			out.writeUTF(password1);
+			out.close();
+		} catch (IOException e) {   //处理异常
+			e.printStackTrace();
+			return false;
+		}
+		return true;
+	}
+
+	public void randomBuild() // 实例方法声明
+	{
+		int randoms, cols, rows; // 变量定义
+		for (int twins = 1; twins <= 15; twins++) {
+			randoms = (int) (Math.random() * 25 + 1);
+			for (int alike = 1; alike <= 2; alike++) {
+				cols = (int) (Math.random() * 6 + 1);
+				rows = (int) (Math.random() * 5 + 1);
+				while (grid[cols][rows] != 0) {
+					cols = (int) (Math.random() * 6 + 1);
+					rows = (int) (Math.random() * 5 + 1);
+				}
+				this.grid[cols][rows] = randoms;
+			}
+		}
+	}
+	public void fraction()// 方法声明
+	{
+		fractionLable.setText(String.valueOf(Integer.parseInt(fractionLable
+				.getText()) + 100));
+	}
+	public void reload()// 方法声明
+	{
+		int save[] = new int[30]; // 创建声明数组
+		int n = 0, cols, rows; // 变量定义
+		int grid[][] = new int[8][7]; // 创建声明数组
+		for (int i = 0; i <= 6; i++) {
+			for (int j = 0; j <= 5; j++) {
+				if (this.grid[i][j] != 0) {
+					save[n] = this.grid[i][j];
+					n++;
+				}
+			}
+		}
+		n = n - 1;
+		this.grid = grid; // this出现在实例方法中，表示使用该方法的当前对象
+		while (n >= 0) // while循环
+		{
+			cols = (int) (Math.random() * 6 + 1);
+			rows = (int) (Math.random() * 5 + 1);
+			while (grid[cols][rows] != 0)// 循环嵌套
+			{
+				cols = (int) (Math.random() * 6 + 1);
+				rows = (int) (Math.random() * 5 + 1);
+			}
+			this.grid[cols][rows] = save[n]; // this出现在实例方法中，表示使用该方法的当前对象
+			n--;
+		}
+		mainFrame.setVisible(false);// 窗口不可见
+		pressInformation = false; // 这里一定要将按钮点击信息归为初始
+		init();
+		for (int i = 0; i < 6; i++)// for循环
+		{
+			for (int j = 0; j < 5; j++)// 循环嵌套
+			{
+				if (grid[i + 1][j + 1] == 0)
+					diamondsButton[i][j].setVisible(false);// 窗口不可见
+			}
+		}
+	}
+	public void estimateEven(int placeX, int placeY, JButton bz)// 有参数的实例方法
+	{
+		if (pressInformation == false)// 选择语句
+		{
+			x = placeX;
+			y = placeY;
+			secondMsg = grid[x][y];
+			secondButton = bz;
+			pressInformation = true;
+		} else {
+			x0 = x;
+			y0 = y;
+			fristMsg = secondMsg;
+			firstButton = secondButton;
+			x = placeX;
+			y = placeY;
+			secondMsg = grid[x][y];
+			secondButton = bz;
+			if (fristMsg == secondMsg && secondButton != firstButton) {
+				xiao();
+			}
+		}
+	}
+
+	public void xiao() // 相同的情况下能不能消去。
+	{
+		if ((x0 == x && (y0 == y + 1 || y0 == y - 1))
+				|| ((x0 == x + 1 || x0 == x - 1) && (y0 == y)))// 判断是否相邻
+		{
+			remove();
+		} else {
+			for (j = 0; j < 7; j++) {
+				if (grid[x0][j] == 0)// 判断第一个按钮同行哪个按钮为空
+				{
+					if (y > j) // 如果第二个按钮的Y坐标大于空按钮的Y坐标说明第一按钮在第二按钮左边
+					{
+						for (i = y - 1; i >= j; i--)// 判断第二按钮左侧直到第一按钮中间有没有按钮
+						{
+							if (grid[x][i] != 0) {
+								k = 0;
+								break;
+							} else {
+								k = 1;
+							} // K=1说明通过了第一次验证
+						}
+						if (k == 1) {
+							linePassOne();
+						}
+					}
+					if (y < j) // 如果第二个按钮的Y坐标小于空按钮的Y坐标说明第一按钮在第二按钮右边
+					{
+						for (i = y + 1; i <= j; i++)// 判断第二按钮左侧直到第一按钮中间有没有按钮
+						{
+							if (grid[x][i] != 0) {
+								k = 0;
+								break;
+							} else {
+								k = 1;
+							}
+						}
+						if (k == 1) {
+							linePassOne();
+						}
+					}
+					if (y == j) {
+						linePassOne();
+					}
+				}
+				if (k == 2) {
+					if (x0 == x) {
+						remove();
+					}
+					if (x0 < x) {
+						for (n = x0; n <= x - 1; n++) {
+							if (grid[n][j] != 0) {
+								k = 0;
+								break;
+							}
+							if (grid[n][j] == 0 && n == x - 1) {
+								remove();
+							}
+						}
+					}
+					if (x0 > x) {
+						for (n = x0; n >= x + 1; n--) {
+							if (grid[n][j] != 0) {
+								k = 0;
+								break;
+							}
+							if (grid[n][j] == 0 && n == x + 1) {
+								remove();
+							}
+						}
+					}
+				}
+			}
+			for (i = 0; i < 8; i++)// 列
+			{
+				if (grid[i][y0] == 0) {
+					if (x > i) {
+						for (j = x - 1; j >= i; j--) {
+							if (grid[j][y] != 0) {
+								k = 0;
+								break;
+							} else {
+								k = 1;
+							}
+						}
+						if (k == 1) {
+							rowPassOne();
+						}
+					}
+					if (x < i) {
+						for (j = x + 1; j <= i; j++) {
+							if (grid[j][y] != 0) {
+								k = 0;
+								break;
+							} else {
+								k = 1;
+							}
+						}
+						if (k == 1) {
+							rowPassOne();
+						}
+					}
+					if (x == i) {
+						rowPassOne();
+					}
+				}
+				if (k == 2) {
+					if (y0 == y) {
+						remove();
+					}
+					if (y0 < y) {
+						for (n = y0; n <= y - 1; n++) {
+							if (grid[i][n] != 0) {
+								k = 0;
+								break;
+							}
+							if (grid[i][n] == 0 && n == y - 1) {
+								remove();
+							}
+						}
+					}
+					if (y0 > y) {
+						for (n = y0; n >= y + 1; n--) {
+							if (grid[i][n] != 0) {
+								k = 0;
+								break;
+							}
+							if (grid[i][n] == 0 && n == y + 1) {
+								remove();
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	public void linePassOne() {
+		if (y0 > j)// 第一按钮同行空按钮在左边
+		{
+			for (i = y0 - 1; i >= j; i--)// 判断第一按钮同左侧空按钮之间有没按钮
+			{
+				if (grid[x0][i] != 0) {
+					k = 0;
+					break;
+				} else {
+					k = 2;
+				} // K=2说明通过了第二次验证
+			}
+		}
+		if (y0 < j)// 第一按钮同行空按钮在与第二按钮之间
+		{
+			for (i = y0 + 1; i <= j; i++) {
+				if (grid[x0][i] != 0) {
+					k = 0;
+					break;
+				} else {
+					k = 2;
+				}
+			}
+		}
+	}
+	public void rowPassOne() {
+		if (x0 > i) {
+			for (j = x0 - 1; j >= i; j--) {
+				if (grid[j][y0] != 0) {
+					k = 0;
+					break;
+				} else {
+					k = 2;
+				}
+			}
+		}
+		if (x0 < i) {
+			for (j = x0 + 1; j <= i; j++) {
+				if (grid[j][y0] != 0) {
+					k = 0;
+					break;
+				} else {
+					k = 2;
+				}
+			}
+		}
+	}
+	public void remove() {
+		firstButton.setVisible(false); // 不可见
+		secondButton.setVisible(false);
+		fraction();
+		pressInformation = false;
+		k = 0;
+		grid[x0][y0] = 0;
+		grid[x][y] = 0;
+	}
+	public void actionPerformed(ActionEvent e) {   //接口实现
+		if (e.getSource() == newlyButton) {
+			int grid[][] = new int[8][7];//创建数组
+			this.grid = grid;
+			randomBuild();
+			mainFrame.setVisible(false);//窗口不可见
+			pressInformation = false;
+			init();
+		}
+		if (e.getSource() == exitButton)
+			System.exit(0);
+		if (e.getSource() == timer) {
+			if (time.isEnd()) {
+				timer.stop();//时间到的提示
+				if (JOptionPane.showConfirmDialog(mainFrame,
+						"时间到了，o(︶︿︶)o \n要再来一局吗？", "提示",
+						JOptionPane.YES_NO_OPTION)== JOptionPane.OK_OPTION) {
+					int grid[][] = new int[8][7];
+					this.grid = grid;
+					randomBuild();
+					mainFrame.setVisible(false);//窗口不可见
+					pressInformation = false;
+					init();
+					timer.start();//启动线程
+				} else
+					System.exit(0);
+			}
+		}
+		for (int cols = 0; cols < 6; cols++) {
+			for (int rows = 0; rows < 5; rows++) {
+				if (e.getSource() == diamondsButton[cols][rows])
+					estimateEven(cols + 1, rows + 1, diamondsButton[cols][rows]);
+			}
+		}
+	}
+	public static void main(String[] args) {//主函数
+		LianLianKan llk = new LianLianKan();//创建对象
+		llk.randomBuild();//调用方法
+		llk.loginDialog();//调用方法
+	}
+}
